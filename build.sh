@@ -1,0 +1,1 @@
+dotnet build && cp C:/Users/Jordan/Development/GNCMod/ExamplePlugin/bin/Debug/netstandard2.0/ExamplePlugin.dll D:/SteamLibrary/steamapps/common/'Risk of Rain 2'/BepInEx/plugins/GNCMod

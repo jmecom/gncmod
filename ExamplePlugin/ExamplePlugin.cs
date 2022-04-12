@@ -117,13 +117,39 @@ namespace ExamplePlugin
         {
             Log.LogInfo("Registering ModifyDropTable");
 
-            On.RoR2.BasicPickupDropTable.GenerateUniqueDropsPreReplacement += (orig, self, maxDrops, rng) =>
+            // On.RoR2.BasicPickupDropTable.GenerateUniqueDropsPreReplacement += (orig, self, maxDrops, rng) =>
+            // {
+            //     Log.LogInfo("Hooking drop table...");
+            //     return orig(self, maxDrops, rng);
+            // };
+
+            On.RoR2.PickupDropTable.GenerateUniqueDrops += (orig, self, maxDrops, rng) =>
             {
                 Log.LogInfo("Hooking drop table...");
-                return orig(self, maxDrops, rng);
-                // PickupIndex[] array2 = new PickupIndex[3];
-                // return array2;
+                maxDrops++;  // Extra choice.
+                PickupIndex[] result = orig(self, maxDrops, rng);
+                
+                // result[maxDrops - 1] = new PickupIndex(15);  // 15 is mocha... ?
+                // PickupIndex idx = PickupCatalog.FindPickupIndex(RoR2.DLC1Content.Equipment.EliteVoidEquipment.pickupToken);
+                PickupIndex idx = PickupCatalog.FindPickupIndex(RoR2.DLC1Content.Items.AttackSpeedAndMoveSpeed.itemIndex);
+                PickupIndex idx2 = PickupCatalog.FindPickupIndex(RoR2.DLC1Content.Equipment.EliteVoidEquipment.equipmentIndex);
+
+                // Log.LogInfo("Test: " + RoR2.DLC1Content.Items.AttackSpeedAndMoveSpeed.pickupToken + " " + RoR2.DLC1Content.Items.AttackSpeedAndMoveSpeed.nameToken);
+                // Log.LogInfo("Foo: " + RoR2.DLC1Content.Equipment.EliteVoidEquipment);
+
+                result[0] = idx;
+                result[1] = idx2;
+                Log.LogInfo("Added " + result[0]);
+                Log.LogInfo("Added " + result[1]);
+                
+                // Randomly replace result with elite equipment.
+                foreach (var v in result) {
+                    Log.LogInfo(v);
+                    Log.LogInfo(v.pickupDef.internalName);
+                }
+                return result;
             };
+
         }
 
 		//The Awake() method is run at the very start when the game is initialized.
@@ -148,30 +174,30 @@ namespace ExamplePlugin
                 Log.LogInfo(table);
                 Log.LogInfo(table.GetType());
 
-                Log.LogInfo("tier1Weight = " + table.tier1Weight);
-                Log.LogInfo("tier2Weight = " + table.tier2Weight);
-                Log.LogInfo("tier3Weight = " + table.tier3Weight);
-                Log.LogInfo("bossWeight = " + table.bossWeight);
-                Log.LogInfo("lunarEquipmentWeight = " + table.lunarEquipmentWeight);
-                Log.LogInfo("lunarItemWeight = " + table.lunarItemWeight);
-                Log.LogInfo("lunarCombinedWeight = " + table.lunarCombinedWeight);
-                Log.LogInfo("equipmentWeight = " + table.equipmentWeight);
-                Log.LogInfo("voidTier1Weight = " + table.voidTier1Weight);
-                Log.LogInfo("voidTier2Weight = " + table.voidTier2Weight);
-                Log.LogInfo("voidTier3Weight = " + table.voidTier3Weight);
-                Log.LogInfo("voidBossWeight = " + table.voidBossWeight);
+                // Log.LogInfo("tier1Weight = " + table.tier1Weight);
+                // Log.LogInfo("tier2Weight = " + table.tier2Weight);
+                // Log.LogInfo("tier3Weight = " + table.tier3Weight);
+                // Log.LogInfo("bossWeight = " + table.bossWeight);
+                // Log.LogInfo("lunarEquipmentWeight = " + table.lunarEquipmentWeight);
+                // Log.LogInfo("lunarItemWeight = " + table.lunarItemWeight);
+                // Log.LogInfo("lunarCombinedWeight = " + table.lunarCombinedWeight);
+                // Log.LogInfo("equipmentWeight = " + table.equipmentWeight);
+                // Log.LogInfo("voidTier1Weight = " + table.voidTier1Weight);
+                // Log.LogInfo("voidTier2Weight = " + table.voidTier2Weight);
+                // Log.LogInfo("voidTier3Weight = " + table.voidTier3Weight);
+                // Log.LogInfo("voidBossWeight = " + table.voidBossWeight);
 
-                Log.LogInfo("rewardOptionCount = " + controller.rewardOptionCount);
-                Log.LogInfo("rewardDisplayTier = " + controller.rewardDisplayTier);
+                // Log.LogInfo("rewardOptionCount = " + controller.rewardOptionCount);
+                // Log.LogInfo("rewardDisplayTier = " + controller.rewardDisplayTier);
 
-                // Doesn't work -- not sure if `table` is a reference or what?
-                table.tier1Weight = 0;
-                table.tier2Weight = 0;
-                table.tier3Weight = 90;
+                // // Doesn't work -- not sure if `table` is a reference or what?
+                // table.tier1Weight = 0;
+                // table.tier2Weight = 0;
+                // table.tier3Weight = 90;
 
-                Log.LogInfo("[1] ref: " + table.GetInstanceID() + " " + table.GetHashCode());
-                Log.LogInfo("[2] ref: " + (RoR2.Run.instance as RoR2.InfiniteTowerRun).waveController.rewardDropTable.GetInstanceID() +
-                    " " + (RoR2.Run.instance as RoR2.InfiniteTowerRun).waveController.rewardDropTable.GetHashCode());
+                // Log.LogInfo("[1] ref: " + table.GetInstanceID() + " " + table.GetHashCode());
+                // Log.LogInfo("[2] ref: " + (RoR2.Run.instance as RoR2.InfiniteTowerRun).waveController.rewardDropTable.GetInstanceID() +
+                //     " " + (RoR2.Run.instance as RoR2.InfiniteTowerRun).waveController.rewardDropTable.GetHashCode());
 
                 controller.DropRewards();
             }

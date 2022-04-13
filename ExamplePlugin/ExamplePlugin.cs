@@ -8,6 +8,7 @@ using MonoMod.Cil;
 using System;
 using System.IO;
 using System.Text;
+using System.Collections.Generic;
 using System.Xml.Linq;
 using Zio;
 using HG;
@@ -97,56 +98,88 @@ namespace ExamplePlugin
             };
         }
 
-        // public PickupIndex[] PickupDropTable_GenerateUniqueDrops(int maxDrops, Xoroshiro128Plus rng)
-        // {
-        //     PickupIndex[] array = GenerateUniqueDropsPreReplacement(maxDrops, rng);
-        //     if (canDropBeReplaced)
-        //     {
-        //         RandomlyLunarUtils.CheckForLunarReplacementUniqueArray(array, rng);
-        //     }
-        //     return array;
-        // }
-
-        private static PickupIndex[] Hooked_DropRewards(int maxDrops, Xoroshiro128Plus rng)
-        {
-            PickupIndex[] array2 = new PickupIndex[3];
-            return array2;
-        }
-
         private void RegisterModifyDropTable()
         {
             Log.LogInfo("Registering ModifyDropTable");
 
-            // On.RoR2.BasicPickupDropTable.GenerateUniqueDropsPreReplacement += (orig, self, maxDrops, rng) =>
-            // {
-            //     Log.LogInfo("Hooking drop table...");
-            //     return orig(self, maxDrops, rng);
-            // };
-
             On.RoR2.PickupDropTable.GenerateUniqueDrops += (orig, self, maxDrops, rng) =>
             {
                 Log.LogInfo("Hooking drop table...");
+                
+                RoR2.InfiniteTowerRun run = RoR2.Run.instance as RoR2.InfiniteTowerRun;
+                
+                // Remove roll of pennies.
+                ItemDef[] originalBlacklist = run.blacklistedItems.Clone() as ItemDef[];
+                List<ItemDef> blacklist = new List<ItemDef>();
+                foreach (var item in originalBlacklist) blacklist.Add(item);
+                blacklist.Add(RoR2.DLC1Content.Items.GoldOnHurt);
+                run.blacklistedItems = blacklist.ToArray();
+
                 maxDrops++;  // Extra choice.
+                self.canDropBeReplaced = false;  // No lunar replacements.
+
                 PickupIndex[] result = orig(self, maxDrops, rng);
-                
-                // result[maxDrops - 1] = new PickupIndex(15);  // 15 is mocha... ?
-                // PickupIndex idx = PickupCatalog.FindPickupIndex(RoR2.DLC1Content.Equipment.EliteVoidEquipment.pickupToken);
-                PickupIndex idx = PickupCatalog.FindPickupIndex(RoR2.DLC1Content.Items.AttackSpeedAndMoveSpeed.itemIndex);
-                PickupIndex idx2 = PickupCatalog.FindPickupIndex(RoR2.DLC1Content.Equipment.EliteVoidEquipment.equipmentIndex);
 
-                // Log.LogInfo("Test: " + RoR2.DLC1Content.Items.AttackSpeedAndMoveSpeed.pickupToken + " " + RoR2.DLC1Content.Items.AttackSpeedAndMoveSpeed.nameToken);
-                // Log.LogInfo("Foo: " + RoR2.DLC1Content.Equipment.EliteVoidEquipment);
-
-                result[0] = idx;
-                result[1] = idx2;
-                Log.LogInfo("Added " + result[0]);
-                Log.LogInfo("Added " + result[1]);
-                
-                // Randomly replace result with elite equipment.
-                foreach (var v in result) {
-                    Log.LogInfo(v);
-                    Log.LogInfo(v.pickupDef.internalName);
+                // Wave 30 should guarantee only red items.
+                if (run.waveController.waveIndex == 30) {
+                    var legendaries = RoR2.ItemCatalog.tier3ItemList;
+                    run.waveController.rewardDisplayTier = ItemTier.Tier3;
+                    for (int i = 0; i < result.Length; i++) {
+                        result[i] = PickupCatalog.FindPickupIndex(legendaries[rng.RangeInt(0, legendaries.Count - 1)]);
+                    }
+                    return result;
                 }
+
+                // TODO
+                // Mix elite equipments and lunar items into the regular drop table.
+                // BasicPickupDropTable customDropTable = new BasicPickupDropTable();
+                // customDropTable.tier1Weight = 0.8f;
+                // customDropTable.tier2Weight = 0.1f;
+                // run.waveController.rewardDropTable
+
+                // 10% chance to replace an item with either an elite equipment or blue item.
+                int roll = rng.RangeInt(0, 10);  // max is exclusive.
+                if (roll >= 1) {   
+                    return result;
+                }                
+                
+                // PickupIndex[] eliteEquipments = {
+                //     PickupCatalog.FindPickupIndex(RoR2.RoR2Content.Equipment.AffixBlue.equipmentIndex),
+                //     PickupCatalog.FindPickupIndex(RoR2.RoR2Content.Equipment.AffixHaunted.equipmentIndex),
+                //     PickupCatalog.FindPickupIndex(RoR2.RoR2Content.Equipment.AffixLunar.equipmentIndex),
+                //     PickupCatalog.FindPickupIndex(RoR2.RoR2Content.Equipment.AffixPoison.equipmentIndex),
+                //     PickupCatalog.FindPickupIndex(RoR2.RoR2Content.Equipment.AffixRed.equipmentIndex),
+                //     PickupCatalog.FindPickupIndex(RoR2.RoR2Content.Equipment.AffixWhite.equipmentIndex),
+                //     PickupCatalog.FindPickupIndex(RoR2.DLC1Content.Buffs.EliteEarth.eliteDef.eliteEquipmentDef.equipmentIndex),
+                //     // PickupCatalog.FindPickupIndex(RoR2.RoR2Content.Equipment.AffixEcho.equipmentIndex),
+                //     // PickupCatalog.FindPickupIndex(RoR2.DLC1Content.Equipment.EliteVoidEquipment.equipmentIndex),
+                // };
+
+                List<PickupIndex> specialItems = new List<PickupIndex>();
+                specialItems.Add(PickupCatalog.FindPickupIndex(RoR2.RoR2Content.Equipment.AffixBlue.equipmentIndex));
+                specialItems.Add(PickupCatalog.FindPickupIndex(RoR2.RoR2Content.Equipment.AffixHaunted.equipmentIndex));
+                specialItems.Add(PickupCatalog.FindPickupIndex(RoR2.RoR2Content.Equipment.AffixLunar.equipmentIndex));
+                specialItems.Add(PickupCatalog.FindPickupIndex(RoR2.RoR2Content.Equipment.AffixPoison.equipmentIndex));
+                specialItems.Add(PickupCatalog.FindPickupIndex(RoR2.RoR2Content.Equipment.AffixRed.equipmentIndex));
+                specialItems.Add(PickupCatalog.FindPickupIndex(RoR2.RoR2Content.Equipment.AffixWhite.equipmentIndex));
+                specialItems.Add(PickupCatalog.FindPickupIndex(RoR2.DLC1Content.Buffs.EliteEarth.eliteDef.eliteEquipmentDef.equipmentIndex));
+
+                var lunars = RoR2.ItemCatalog.lunarItemList;
+                foreach (var lunar in lunars) {
+                    specialItems.Add(PickupCatalog.FindPickupIndex(lunar));
+                }
+
+                result[0] = specialItems[rng.RangeInt(0, specialItems.Count - 1)];
+                
+                // result[0] = PickupCatalog.FindPickupIndex(RoR2.DLC1Content.Buffs.EliteEarth.eliteDef.eliteEquipmentDef.equipmentIndex);
+                // result[0] = eliteEquipments[rng.RangeInt(0, eliteEquipments.Length - 1)];
+                // Log.LogInfo("Added " + result[0]);
+                
+                // foreach (var v in result) {
+                //     Log.LogInfo(v);
+                //     Log.LogInfo(v.pickupDef.internalName);
+                // }
+
                 return result;
             };
 
@@ -159,8 +192,8 @@ namespace ExamplePlugin
             Log.Init(Logger);
 
             // RegisterPenniesNerf();
-            RegisterModifyDropTable();
             RegisterSaveRunReportAfterWave();
+            RegisterModifyDropTable();    
         }
 
         //The Update() method is run on every frame of the game.
@@ -168,11 +201,14 @@ namespace ExamplePlugin
         {
             if (Input.GetKeyDown(KeyCode.F2))
             {
+                Log.LogInfo("F2 pushed");
                 var run = RoR2.Run.instance as RoR2.InfiniteTowerRun;
                 var controller = run.waveController;
-                BasicPickupDropTable table = controller.rewardDropTable as BasicPickupDropTable;
-                Log.LogInfo(table);
-                Log.LogInfo(table.GetType());
+                controller.DropRewards();
+
+                // BasicPickupDropTable table = controller.rewardDropTable as BasicPickupDropTable;
+                // Log.LogInfo(table);
+                // Log.LogInfo(table.GetType());
 
                 // Log.LogInfo("tier1Weight = " + table.tier1Weight);
                 // Log.LogInfo("tier2Weight = " + table.tier2Weight);
@@ -199,7 +235,7 @@ namespace ExamplePlugin
                 // Log.LogInfo("[2] ref: " + (RoR2.Run.instance as RoR2.InfiniteTowerRun).waveController.rewardDropTable.GetInstanceID() +
                 //     " " + (RoR2.Run.instance as RoR2.InfiniteTowerRun).waveController.rewardDropTable.GetHashCode());
 
-                controller.DropRewards();
+                
             }
         }
     }
